@@ -144,22 +144,22 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
              Query(q).
              Pretty(true).
              Do()
-      if err != nil {
+      	if err != nil {
              // Handle error
              panic(err)
 	  }
 	  
 	// searchResult is of type SearchResult and returns hits, suggestions,
-    // and all kinds of other information from Elasticsearch.
-    fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
-    // TotalHits is another convenience function that works even when something goes wrong.
+    	// and all kinds of other information from Elasticsearch.
+    	fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
+    	// TotalHits is another convenience function that works even when something goes wrong.
 	fmt.Printf("Found a total of %d post\n", searchResult.TotalHits())
 
 	// Each is a convenience function that iterates over hits in a search result.
-    // It makes sure you don't need to check for nil values in the response.
-    // However, it ignores errors in serialization.
-    var typ Post
-    var ps []Post
+    	// It makes sure you don't need to check for nil values in the response.
+    	// However, it ignores errors in serialization.
+    	var typ Post
+    	var ps []Post
 
 	for _, item := range searchResult.Each(reflect.TypeOf(typ)) { // instance of
 		p := item.(Post) // p = (Post) item
@@ -169,7 +169,7 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	js, err := json.Marshal(ps)
-      if err != nil {
+      	if err != nil {
              panic(err)
              return
     	}
@@ -177,9 +177,6 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(js)
-
-
-
 }
 
 
