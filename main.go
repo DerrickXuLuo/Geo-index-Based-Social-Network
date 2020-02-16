@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"cloud.google.com/go/storage"
 	elastic "gopkg.in/olivere/elastic.v3"
 	"fmt"
 	"net/http"
@@ -9,6 +11,7 @@ import (
 	"strconv"
 	"reflect"
 	"github.com/pborman/uuid"
+	"io"
 )
 
 type Location struct {
@@ -20,6 +23,7 @@ type Post struct {
 	User string `json:"user"`
 	Message string `json:"message"`
 	Location Location `json:"location"`
+	Url string `json:"url"`
 }
 
 const (
@@ -30,7 +34,8 @@ const (
 	//PROJECT_ID = "nearby-xxx"
 	//BT_INSTANCE = "nearby-post"
 	// Needs to update this URL if you deploy it to cloud.
-	ES_URL = "http://34.68.14.246:9200/"
+	ES_URL = "http://34.67.155.212:9200"
+	BUCKET_NAME = "post-image-267819"
 )
 
 
@@ -74,19 +79,78 @@ func main() {
 }
 
 func handlerPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received one post request")
-	decoder := json.NewDecoder(r.Body)
-	var p Post
-	if err := decoder.Decode(&p); err != nil {
-		panic(err)
-		return
+	w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+
+	r.ParseMultipartForm(32 << 20)
+
+	fmt.Printf("Received one post request %s\n", r.FormValue("message"))
+	lat, _ := strconv.ParseFloat(r.FormValue("lat"), 64)
+    lon, _ := strconv.ParseFloat(r.FormValue("lon"), 64)
+
+	p := &Post{
+		User: "1111",
+		Message: r.FormValue("message"),
+		Location: Location{
+			Lat: lat,
+			Lon: lon,
+		},
 	}
 
-	fmt.Fprintf(w, "Post received: %s\n", p.Message)
-
 	id := uuid.New()
-	// Save to ES.
-	saveToES(&p, id)
+	
+	file, _, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Image is not available", http.StatusInternalServerError)
+		fmt.Printf("Image is not availabe %v.\n", err)
+		panic(err)
+	}
+	defer file.Close()
+
+	ctx := context.Background()
+
+	_, attrs, err := saveToGCS(ctx, file, BUCKET_NAME, id)
+	if err != nil {
+		http.Error(w, "GCS is not setup", http.StatusInternalServerError)
+        fmt.Printf("GCS is not setup %v\n", err)
+        panic(err)
+	}
+
+	p.Url = attrs.MediaLink
+
+	saveToES(p, id)
+}
+
+func saveToGCS(ctx context.Context, r io.Reader, bucketName, name string) (*storage.ObjectHandle, *storage.ObjectAttrs, error){
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer client.Close()
+
+	bucket := client.Bucket(bucketName)
+	
+	if _, err = bucket.Attrs(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	obj := bucket.Object(name)
+	wc := obj.NewWriter(ctx)
+	if _, err := io.Copy(wc, r); err != nil {
+		return nil, nil, err
+	}
+	if err := wc.Close(); err != nil {
+		return nil, nil, err
+	}
+
+	if err := obj.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+		return nil, nil, err
+	}
+
+	attrs, err := obj.Attrs(ctx)
+	fmt.Printf("Post is saved to GCS: %s\n", attrs.MediaLink)
+	return obj, attrs, err
 }
 
 // Save a post to ElasticSearch
@@ -165,7 +229,7 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 		p := item.(Post) // p = (Post) item
 		fmt.Printf("Post by %s: %s at lat %v and lon %v\n", p.User, p.Message, p.Location.Lat, p.Location.Lon)
 		// TODO(student homework): Perform filtering based on keywords such as web spam etc.
-		ps = append(ps, p)
+		ps = append(ps, p)     
 	}
 
 	js, err := json.Marshal(ps)
@@ -177,9 +241,6 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(js)
-
-
-
 }
 
 
