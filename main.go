@@ -5,6 +5,7 @@ import (
     "github.com/dgrijalva/jwt-go"
     "github.com/gorilla/mux"
 	"context"
+	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/storage"
 	elastic "gopkg.in/olivere/elastic.v3"
 	"fmt"
@@ -33,11 +34,11 @@ const (
 	INDEX = "nearby"
 	TYPE = "post"
 	DISTANCE = "200km"
-	// Needs to update
-	//PROJECT_ID = "nearby-xxx"
-	//BT_INSTANCE = "nearby-post"
-	// Needs to update this URL if you deploy it to cloud.
-	ES_URL = "http://35.225.130.71:9200"
+	//Needs to update
+	PROJECT_ID = "nearby-267819"
+	BT_INSTANCE = "nearby-post"
+	//Needs to update this URL if you deploy it to cloud.
+	ES_URL = "http://35.238.242.88:9200"
 	BUCKET_NAME = "post-image-267819"
 )
 
@@ -98,8 +99,8 @@ func main() {
 
 func handlerPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-    	w.Header().Set("Access-Control-Allow-Origin", "*")
-    	w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
 
 	user := r.Context().Value("user")
 	claims := user.(*jwt.Token).Claims
@@ -109,7 +110,7 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Received one post request %s\n", r.FormValue("message"))
 	lat, _ := strconv.ParseFloat(r.FormValue("lat"), 64)
-    	lon, _ := strconv.ParseFloat(r.FormValue("lon"), 64)
+    lon, _ := strconv.ParseFloat(r.FormValue("lon"), 64)
 
 	p := &Post{
 		User: username.(string),
@@ -142,7 +143,37 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 	p.Url = attrs.MediaLink
 
 	saveToES(p, id)
+
+	saveToBigTable(p, id)
 }
+
+func saveToBigTable(p *Post, id string) {
+	ctx := context.Background()
+	//Update the project name and bt_instance here
+	bt_client, err := bigtable.NewClient(ctx, PROJECT_ID, BT_INSTANCE)
+	if err != nil {
+		panic(err)
+		return 
+	}
+
+	tbl := bt_client.Open("post")
+	mut := bigtable.NewMutation()
+	t := bigtable.Now()
+
+	mut.Set("post", "user", t, []byte(p.User))
+	mut.Set("post", "message", t, []byte(p.Message))
+	mut.Set("location", "lat", t, []byte(strconv.FormatFloat(p.Location.Lat, 'f', -1, 64)))
+	mut.Set("location", "lon", t, []byte(strconv.FormatFloat(p.Location.Lon, 'f', -1, 64)))
+
+	err = tbl.Apply(ctx, id, mut)
+	if err != nil {
+		panic(err)
+		return
+	}
+	
+	fmt.Printf("POST is saved to BigTable: %s\n", p.Message)
+}
+
 
 func saveToGCS(ctx context.Context, r io.Reader, bucketName, name string) (*storage.ObjectHandle, *storage.ObjectAttrs, error){
 	client, err := storage.NewClient(ctx)
@@ -215,8 +246,8 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	// Create a client
 	client, err := elastic.NewClient(elastic.SetURL(ES_URL), elastic.SetSniff(false))
 	if err != nil {
-		   panic(err)
-		   return
+		panic(err)
+		return
 	}
 
 	// Define geo distance query as specified in
@@ -226,26 +257,26 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 
 	// Some delay may range from seconds to minutes. So if you don't get enough results. Try it later.
 	searchResult, err := client.Search().
-             Index(INDEX).
-             Query(q).
-             Pretty(true).
-             Do()
+		Index(INDEX).
+		Query(q).
+		Pretty(true).
+		Do()
       	if err != nil {
-             // Handle error
-             panic(err)
-	  }
+			// Handle error
+			panic(err)
+		}
 	  
 	// searchResult is of type SearchResult and returns hits, suggestions,
-    	// and all kinds of other information from Elasticsearch.
-    	fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
-    	// TotalHits is another convenience function that works even when something goes wrong.
+	// and all kinds of other information from Elasticsearch.
+	fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
+	// TotalHits is another convenience function that works even when something goes wrong.
 	fmt.Printf("Found a total of %d post\n", searchResult.TotalHits())
 
 	// Each is a convenience function that iterates over hits in a search result.
-    	// It makes sure you don't need to check for nil values in the response.
-    	// However, it ignores errors in serialization.
-    	var typ Post
-    	var ps []Post
+	// It makes sure you don't need to check for nil values in the response.
+	// However, it ignores errors in serialization.
+	var typ Post
+	var ps []Post
 
 	for _, item := range searchResult.Each(reflect.TypeOf(typ)) { // instance of
 		p := item.(Post) // p = (Post) item
@@ -255,10 +286,10 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	js, err := json.Marshal(ps)
-      	if err != nil {
-             panic(err)
-             return
-    	}
+	if err != nil {
+		panic(err)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
