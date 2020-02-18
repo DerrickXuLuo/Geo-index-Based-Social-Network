@@ -99,8 +99,8 @@ func main() {
 
 func handlerPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    	w.Header().Set("Access-Control-Allow-Origin", "*")
+    	w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
 
 	user := r.Context().Value("user")
 	claims := user.(*jwt.Token).Claims
@@ -110,7 +110,7 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Received one post request %s\n", r.FormValue("message"))
 	lat, _ := strconv.ParseFloat(r.FormValue("lat"), 64)
-    lon, _ := strconv.ParseFloat(r.FormValue("lon"), 64)
+    	lon, _ := strconv.ParseFloat(r.FormValue("lon"), 64)
 
 	p := &Post{
 		User: username.(string),
