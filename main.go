@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/auth0/go-jwt-middleware"
-    "github.com/dgrijalva/jwt-go"
-    "github.com/gorilla/mux"
+    	"github.com/dgrijalva/jwt-go"
+    	"github.com/gorilla/mux"
 	"context"
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/storage"
@@ -86,7 +86,7 @@ func main() {
 			return mySigningKey, nil
 		},
 		SigningMethod: jwt.SigningMethodHS256,
- })
+ 	})
 
 	r.Handle("/post", jwtMiddleware.Handler(http.HandlerFunc(handlerPost))).Methods("POST")
 	r.Handle("/search", jwtMiddleware.Handler(http.HandlerFunc(handlerSearch))).Methods("GET")

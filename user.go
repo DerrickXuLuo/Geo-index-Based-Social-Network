@@ -49,11 +49,11 @@ func checkUser(username, password string) bool {
 	}
 
 	var tyu User
-    for _, item := range queryResult.Each(reflect.TypeOf(tyu)) {
-        u := item.(User)
-        return u.Password == password && u.Username == username
-    }
-    // If no user exist, return false.
+    	for _, item := range queryResult.Each(reflect.TypeOf(tyu)) {
+		u := item.(User)
+		return u.Password == password && u.Username == username
+    	}	
+    	// If no user exist, return false.
   	return false
 }
 
