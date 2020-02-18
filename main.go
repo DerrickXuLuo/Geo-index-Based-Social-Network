@@ -85,7 +85,7 @@ func main() {
 			return mySigningKey, nil
 		},
 		SigningMethod: jwt.SigningMethodHS256,
- })
+ 	})
 
 	r.Handle("/post", jwtMiddleware.Handler(http.HandlerFunc(handlerPost))).Methods("POST")
 	r.Handle("/search", jwtMiddleware.Handler(http.HandlerFunc(handlerSearch))).Methods("GET")
