@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/auth0/go-jwt-middleware"
-    	"github.com/dgrijalva/jwt-go"
-    	"github.com/gorilla/mux"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 	"context"
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/storage"
@@ -35,8 +35,8 @@ const (
 	TYPE = "post"
 	DISTANCE = "200km"
 	//Needs to update
-	PROJECT_ID = "nearby-267819"
-	BT_INSTANCE = "nearby-post"
+	// PROJECT_ID = "nearby-267819"
+	// BT_INSTANCE = "nearby-post"
 	//Needs to update this URL if you deploy it to cloud.
 	ES_URL = "http://35.238.242.88:9200"
 	BUCKET_NAME = "post-image-267819"
@@ -144,35 +144,35 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 
 	saveToES(p, id)
 
-	saveToBigTable(p, id)
+	// saveToBigTable(p, id)
 }
 
-func saveToBigTable(p *Post, id string) {
-	ctx := context.Background()
-	//Update the project name and bt_instance here
-	bt_client, err := bigtable.NewClient(ctx, PROJECT_ID, BT_INSTANCE)
-	if err != nil {
-		panic(err)
-		return 
-	}
+// func saveToBigTable(p *Post, id string) {
+// 	ctx := context.Background()
+// 	//Update the project name and bt_instance here
+// 	bt_client, err := bigtable.NewClient(ctx, PROJECT_ID, BT_INSTANCE)
+// 	if err != nil {
+// 		panic(err)
+// 		return 
+// 	}
 
-	tbl := bt_client.Open("post")
-	mut := bigtable.NewMutation()
-	t := bigtable.Now()
+// 	tbl := bt_client.Open("post")
+// 	mut := bigtable.NewMutation()
+// 	t := bigtable.Now()
 
-	mut.Set("post", "user", t, []byte(p.User))
-	mut.Set("post", "message", t, []byte(p.Message))
-	mut.Set("location", "lat", t, []byte(strconv.FormatFloat(p.Location.Lat, 'f', -1, 64)))
-	mut.Set("location", "lon", t, []byte(strconv.FormatFloat(p.Location.Lon, 'f', -1, 64)))
+// 	mut.Set("post", "user", t, []byte(p.User))
+// 	mut.Set("post", "message", t, []byte(p.Message))
+// 	mut.Set("location", "lat", t, []byte(strconv.FormatFloat(p.Location.Lat, 'f', -1, 64)))
+// 	mut.Set("location", "lon", t, []byte(strconv.FormatFloat(p.Location.Lon, 'f', -1, 64)))
 
-	err = tbl.Apply(ctx, id, mut)
-	if err != nil {
-		panic(err)
-		return
-	}
+// 	err = tbl.Apply(ctx, id, mut)
+// 	if err != nil {
+// 		panic(err)
+// 		return
+// 	}
 	
-	fmt.Printf("POST is saved to BigTable: %s\n", p.Message)
-}
+// 	fmt.Printf("POST is saved to BigTable: %s\n", p.Message)
+//}
 
 
 func saveToGCS(ctx context.Context, r io.Reader, bucketName, name string) (*storage.ObjectHandle, *storage.ObjectAttrs, error){
